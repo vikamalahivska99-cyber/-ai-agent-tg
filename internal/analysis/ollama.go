@@ -79,33 +79,40 @@ func (a *OllamaAnalyzer) Analyze(ctx context.Context, image []byte) (*BugAnalysi
 	log.Printf("[ollama] analyzing image: original=%d bytes, prepared=%d bytes", len(image), len(prepared))
 	imgB64 := base64.StdEncoding.EncodeToString(prepared)
 
-	prompt := `You are a senior QA engineer specializing in functional testing and UI/UX (NOT accessibility).
-Analyze the UI screenshot or photo and identify ALL clear software bugs visible on the image: functional, visual, layout and content issues.
-Ignore accessibility-only concerns (contrast, focus order, screen reader labels, ARIA roles, etc.) unless they clearly break functional behaviour for all users.
-Focus ONLY on what is actually visible on the screenshot. Do not invent bugs that cannot be seen.
-Return STRICT JSON ONLY in ENGLISH (no markdown, no explanations, no extra text) with this schema:
+	prompt := `You are a senior QA engineer. Analyze this UI screenshot and write CONCRETE, SPECIFIC test cases.
+
+WHAT TO DO:
+1) Look at the screenshot and name what you see: app/screen name, buttons, labels, fields, messages, layout.
+2) For each clear bug (broken button, wrong text, overlap, missing element, error message, wrong layout): write one test case with SPECIFIC steps and SPECIFIC expected vs actual.
+
+BE SPECIFIC — bad vs good:
+- BAD steps: "Open the affected screen", "Perform the steps", "Observe the result".
+- GOOD steps: "Open the Login screen", "Click the 'Submit' button", "Check that the 'Save' button in the footer is visible".
+- BAD expected: "Expected correct behaviour".
+- GOOD expected: "The Save button is visible and clicking it saves the form".
+- BAD actual: "Actual behaviour (describe what you see)".
+- GOOD actual: "The Save button is cut off on the right and cannot be clicked".
+
+Return STRICT JSON ONLY in ENGLISH (no markdown, no other text):
 {
-  "bugTitle": "string",
+  "bugTitle": "string (short, specific: e.g. 'Save button truncated on Settings screen')",
   "testCases": [
     {
       "id": "TC-001",
-      "title": "string",
-      "preconditions": ["string"],
-      "steps": ["string"],
-      "expectedResult": "string",
-      "actualResult": "string",
+      "title": "string (specific: what to verify)",
+      "preconditions": ["string (e.g. User is on Settings screen)"],
+      "steps": ["string (concrete action 1)", "string (concrete action 2)"],
+      "expectedResult": "string (what should happen, specific)",
+      "actualResult": "string (what is wrong on the screenshot, specific)",
       "priority": "High | Medium | Low",
       "severity": "Critical | Major | Minor | Trivial"
     }
   ]
 }
 Rules:
-- Provide multiple test cases (2-6) covering ALL clearly visible functional / UI / layout / content issues on the screenshot.
-- Do NOT focus on pure accessibility issues unless they clearly break the main functional flow.
-- All text MUST be in English only.
-- Choose priority based on business impact (High = must fix now, Medium = important but not blocking, Low = nice to have).
-- Choose severity based on impact on functionality and users (Critical, Major, Minor, Trivial).
-- If multiple issues are present, create separate test cases for each distinct bug you can clearly see on the screenshot.
+- 2–6 test cases. Each step and expected/actual must describe what is VISIBLE on the screenshot (names of buttons, labels, error text).
+- All text in English only. priority/severity: High=must fix, Medium=important, Low=minor; Critical/Major/Minor/Trivial for impact.
+- Ignore pure accessibility (contrast, ARIA) unless it breaks normal use.
 `
 
 	reqBody := ollamaGenerateRequest{
@@ -155,18 +162,18 @@ Rules:
 	responseBody := stripMarkdownCodeBlock(genResp.Response)
 	jsonText := extractFirstJSONObject(responseBody)
 
-	// Внутрішній DTO, який відповідає схемі промпта.
+	// Внутрішній DTO; steps/preconditions приймає і рядок, і масив (модель іноді ламає схему).
 	var dto struct {
 		BugTitle  string `json:"bugTitle"`
 		TestCases []struct {
-			ID            string   `json:"id"`
-			Title         string   `json:"title"`
-			Preconditions []string `json:"preconditions"`
-			Steps         []string `json:"steps"`
-			Expected      string   `json:"expectedResult"`
-			Actual        string   `json:"actualResult"`
-			Priority      string   `json:"priority"`
-			Severity      string   `json:"severity"`
+			ID            string          `json:"id"`
+			Title         string          `json:"title"`
+			Preconditions flexStringSlice `json:"preconditions"`
+			Steps         flexStringSlice `json:"steps"`
+			Expected      string          `json:"expectedResult"`
+			Actual        string          `json:"actualResult"`
+			Priority      string          `json:"priority"`
+			Severity      string          `json:"severity"`
 		} `json:"testCases"`
 	}
 
@@ -187,11 +194,15 @@ Rules:
 		BugTitle: dto.BugTitle,
 	}
 	for _, tc := range dto.TestCases {
+		steps := []string(tc.Steps)
+		if len(steps) == 0 {
+			steps = []string{"See actual result"}
+		}
 		out.TestCases = append(out.TestCases, TestCase{
 			ID:            tc.ID,
 			Title:         tc.Title,
-			Preconditions: tc.Preconditions,
-			Steps:         tc.Steps,
+			Preconditions: []string(tc.Preconditions),
+			Steps:         steps,
 			Expected:      tc.Expected,
 			Actual:        tc.Actual,
 			Priority:      tc.Priority,
@@ -296,18 +307,18 @@ Bug description from tester:
 	responseBody := stripMarkdownCodeBlock(genResp.Response)
 	jsonText := extractFirstJSONObject(responseBody)
 
-	// Внутрішній DTO, який відповідає схемі промпта.
+	// Внутрішній DTO; steps/preconditions приймає і рядок, і масив.
 	var dto struct {
 		BugTitle  string `json:"bugTitle"`
 		TestCases []struct {
-			ID            string   `json:"id"`
-			Title         string   `json:"title"`
-			Preconditions []string `json:"preconditions"`
-			Steps         []string `json:"steps"`
-			Expected      string   `json:"expectedResult"`
-			Actual        string   `json:"actualResult"`
-			Priority      string   `json:"priority"`
-			Severity      string   `json:"severity"`
+			ID            string          `json:"id"`
+			Title         string          `json:"title"`
+			Preconditions flexStringSlice `json:"preconditions"`
+			Steps         flexStringSlice `json:"steps"`
+			Expected      string          `json:"expectedResult"`
+			Actual        string          `json:"actualResult"`
+			Priority      string          `json:"priority"`
+			Severity      string          `json:"severity"`
 		} `json:"testCases"`
 	}
 
@@ -326,11 +337,15 @@ Bug description from tester:
 		BugTitle: dto.BugTitle,
 	}
 	for _, tc := range dto.TestCases {
+		steps := []string(tc.Steps)
+		if len(steps) == 0 {
+			steps = []string{"See actual result"}
+		}
 		out.TestCases = append(out.TestCases, TestCase{
 			ID:            tc.ID,
 			Title:         tc.Title,
-			Preconditions: tc.Preconditions,
-			Steps:         tc.Steps,
+			Preconditions: []string(tc.Preconditions),
+			Steps:         steps,
 			Expected:      tc.Expected,
 			Actual:        tc.Actual,
 			Priority:      tc.Priority,
@@ -355,6 +370,30 @@ Bug description from tester:
 	}
 
 	return out, nil
+}
+
+// flexStringSlice приймає з JSON як один рядок, так і масив рядків (модель іноді повертає "steps": "one step" замість масиву).
+type flexStringSlice []string
+
+func (f *flexStringSlice) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		*f = nil
+		return nil
+	}
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		if s == "" {
+			*f = nil
+		} else {
+			*f = []string{s}
+		}
+		return nil
+	}
+	return json.Unmarshal(data, (*[]string)(f))
 }
 
 // stripMarkdownCodeBlock прибирає обгортку ```json ... ``` або ``` ... ``` з відповіді моделі.
