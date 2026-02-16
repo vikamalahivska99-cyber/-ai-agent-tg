@@ -1,0 +1,21 @@
+# Секрети — ніколи не комітити в GitHub
+.env
+.env.local
+*.env
+
+# Зібрані бінарники
+bin/
+*.exe
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+*.swp
+.DS_Store
+Thumbs.db
