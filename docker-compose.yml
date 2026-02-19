@@ -1,0 +1,8 @@
+# Quick start: docker compose up -d
+# Requires .env file (copy from .env.example and set TELEGRAM_BOT_TOKEN).
+services:
+  bot:
+    build: .
+    image: bugreport-bot:latest
+    env_file: .env
+    restart: unless-stopped

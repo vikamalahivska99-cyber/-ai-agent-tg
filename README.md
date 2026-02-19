@@ -1,27 +1,127 @@
 # Telegram Bug Report Bot (Go)
 
-Телеграм-бот на Go, який приймає фото/скріншот багу, надсилає зображення в мок-сервіс аналізу та повертає користувачу опис багу у вигляді тест-кейсів.
+Телеграм-бот на Go: приймає **фото/скріншот** або **текстовий опис** багу і повертає згенеровані тест-кейси англійською (з пріоритетом і severity). Підтримує локальний AI через Ollama.
 
-## Вимоги
+---
 
-- Встановлений **Go** (версія 1.21+)
-- Аккаунт Telegram і токен бота від **@BotFather**
+## Documentation & deliverables
 
-## Клонування з GitHub
+| File | Description |
+|------|-------------|
+| [**TESTCASES.md**](TESTCASES.md) | Test cases for the bot (manual testing results, Pass/Fail). |
+| [**QA_SUMMARY.md**](QA_SUMMARY.md) | QA summary report: scope, environment, execution summary, issues found, conclusion. |
+| **`.env`** | **Not in the repository** (secrets). Use [**.env.example**](.env.example) as a template: copy to `.env` and set your `TELEGRAM_BOT_TOKEN` and `ANALYSIS_MODE`. |
 
 ```bash
-git clone https://github.com/ВАШ_ЛОГІН/НАЗВА_РЕПО.git
-cd НАЗВА_РЕПО
+cp .env.example .env
+# Edit .env and set TELEGRAM_BOT_TOKEN=your_token_from_BotFather
 ```
 
-Створіть файл `.env` у корені проєкту (його немає в репозиторії через безпеку) і додайте туди токен та режим аналізу, наприклад:
+---
 
-```
-TELEGRAM_BOT_TOKEN=ваш_токен_від_BotFather
-ANALYSIS_MODE=mock
+## Requirements
+
+- **Go** 1.21+
+- Telegram bot token from [@BotFather](https://t.me/BotFather)
+- (Optional) [Ollama](https://ollama.com/download) for AI analysis of screenshots
+
+---
+
+## Quick start (copy-paste)
+
+**1. Clone and enter the project:**
+
+```bash
+git clone https://github.com/vikamalahivska99-cyber/-ai-agent-tg.git
+cd -ai-agent-tg
 ```
 
-Далі — див. розділ «Налаштування» та «Запуск».
+**2. Create `.env` from the example:**
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set at least:
+
+- `TELEGRAM_BOT_TOKEN=your_token_from_BotFather`
+- `ANALYSIS_MODE=mock` (or `ollama` if you have Ollama running)
+
+**3. Install dependencies and run:**
+
+```bash
+go mod tidy
+go run ./cmd/bot
+```
+
+You should see: `authorized on account: @YourBot`. Then open Telegram and message your bot.
+
+---
+
+## Command examples (for beginners)
+
+Run everything from the **project root** (where `go.mod` and `.env` are).
+
+| What you want | Command |
+|---------------|--------|
+| Run the bot | `go run ./cmd/bot` |
+| Build binary | `go build -o bin/bot ./cmd/bot` |
+| Run binary | `./bin/bot` (Linux/macOS) or `bin\bot.exe` (Windows) |
+| Run tests | `go test ./...` |
+| With Makefile | `make run` — run bot; `make build` — build; `make test` — tests |
+
+**PowerShell (Windows) — run without .env file:**
+
+```powershell
+$env:TELEGRAM_BOT_TOKEN = "your_token_here"
+$env:ANALYSIS_MODE = "mock"
+go run ./cmd/bot
+```
+
+**Linux/macOS:**
+
+```bash
+export TELEGRAM_BOT_TOKEN="your_token_here"
+export ANALYSIS_MODE="mock"
+go run ./cmd/bot
+```
+
+---
+
+## Docker (quick start)
+
+If you have Docker installed, you can run the bot without installing Go locally.
+
+**1. Create `.env`** (copy from `.env.example`, set `TELEGRAM_BOT_TOKEN`).
+
+**2. Build and run:**
+
+```bash
+docker compose up -d
+```
+
+**3. View logs:**
+
+```bash
+docker compose logs -f
+```
+
+**4. Stop:**
+
+```bash
+docker compose down
+```
+
+**Manual Docker commands:**
+
+```bash
+docker build -t bugreport-bot:latest .
+docker run --rm --env-file .env bugreport-bot:latest
+```
+
+> **Note:** For `ANALYSIS_MODE=ollama`, Ollama must run on the host or in another container; the default Docker setup runs the bot only (mock mode works out of the box).
+
+---
 
 ## Налаштування
 
@@ -38,10 +138,11 @@ ANALYSIS_MODE=mock
    export TELEGRAM_BOT_TOKEN="ВАШ_ТОКЕН_ТУТ"
    ```
 
-3. (Одноразово) Ініціалізуйте залежності Telegram API, якщо потрібно:
+3. Or use **.env**: copy [.env.example](.env.example) to `.env`, set `TELEGRAM_BOT_TOKEN` and `ANALYSIS_MODE`; the bot loads `.env` at startup.
+
+4. (One-time) Install dependencies if needed:
 
    ```bash
-   go get github.com/go-telegram-bot-api/telegram-bot-api/v5
    go mod tidy
    ```
 
@@ -133,4 +234,35 @@ ANALYSIS_MODE=mock
 - Використовуйте `OLLAMA_URL="http://127.0.0.1:11434"` (на Windows краще ніж localhost).
 - Один раз виконайте `ollama pull llava`.
 - Після запуску Ollama можна знову надіслати фото — перезапуск бота не обов’язковий.
+
+---
+
+## FAQ (common questions)
+
+**Q: Where do I get the bot token?**  
+A: Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, follow the steps. Copy the token into `.env` as `TELEGRAM_BOT_TOKEN=...`.
+
+**Q: Why does the bot always return the same template?**  
+A: You are in `mock` mode. Set `ANALYSIS_MODE=ollama` in `.env`, install and run Ollama, and run `ollama pull llava` for screenshot analysis.
+
+**Q: Why does photo analysis fail but text works?**  
+A: Photo analysis needs a **vision** model. Use `OLLAMA_MODEL=llava` in `.env` and run `ollama pull llava`. Text-only models (e.g. llama3.2) do not accept images.
+
+**Q: Can I run the bot 24/7?**  
+A: When running on your PC, the bot stops when you close the terminal or turn off the computer. For 24/7, run it on a server (e.g. VPS) or use Docker on a machine that stays on.
+
+**Q: Is my `.env` file safe?**  
+A: `.env` is in `.gitignore` and is **not** committed to GitHub. Never share your token. Use `.env.example` as a template; it contains no secrets.
+
+**Q: How do I run tests?**  
+A: From the project root: `go test ./...` or `make test`.
+
+---
+
+## Recent improvements (documentation & DX)
+
+- **.env.example** — Added; copy to `.env` and set your token. No secrets in the repo.
+- **FAQ** — Added for common questions (token, Ollama, photo vs text, 24/7, safety).
+- **Docker** — Added Dockerfile and docker-compose for quick start without installing Go.
+- **README** — More command examples, clearer formatting, table of commands, and explicit links to [TESTCASES.md](TESTCASES.md) and [QA_SUMMARY.md](QA_SUMMARY.md).
 
