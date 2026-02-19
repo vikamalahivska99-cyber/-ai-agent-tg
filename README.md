@@ -10,12 +10,7 @@
 |------|-------------|
 | [**TESTCASES.md**](TESTCASES.md) | Test cases for the bot (manual testing results, Pass/Fail). |
 | [**QA_SUMMARY.md**](QA_SUMMARY.md) | QA summary report: scope, environment, execution summary, issues found, conclusion. |
-| **`.env`** | **Not in the repository** (secrets). Use [**.env.example**](.env.example) as a template: copy to `.env` and set your `TELEGRAM_BOT_TOKEN` and `ANALYSIS_MODE`. |
-
-```bash
-cp .env.example .env
-# Edit .env and set TELEGRAM_BOT_TOKEN=your_token_from_BotFather
-```
+| [**.env.example**](.env.example) | Template for environment variables; set your token and `ANALYSIS_MODE` locally. |
 
 ---
 
@@ -36,16 +31,7 @@ git clone https://github.com/vikamalahivska99-cyber/-ai-agent-tg.git
 cd -ai-agent-tg
 ```
 
-**2. Create `.env` from the example:**
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and set at least:
-
-- `TELEGRAM_BOT_TOKEN=your_token_from_BotFather`
-- `ANALYSIS_MODE=mock` (or `ollama` if you have Ollama running)
+**2. Configure** — use `.env.example` as reference; set `TELEGRAM_BOT_TOKEN` (from @BotFather) and `ANALYSIS_MODE` (`mock` or `ollama`) in your local config. The bot loads it at startup.
 
 **3. Install dependencies and run:**
 
@@ -60,7 +46,7 @@ You should see: `authorized on account: @YourBot`. Then open Telegram and messag
 
 ## Command examples (for beginners)
 
-Run everything from the **project root** (where `go.mod` and `.env` are).
+Run everything from the **project root** (where `go.mod` is).
 
 | What you want | Command |
 |---------------|--------|
@@ -70,7 +56,7 @@ Run everything from the **project root** (where `go.mod` and `.env` are).
 | Run tests | `go test ./...` |
 | With Makefile | `make run` — run bot; `make build` — build; `make test` — tests |
 
-**PowerShell (Windows) — run without .env file:**
+**PowerShell (Windows) — set variables in shell:**
 
 ```powershell
 $env:TELEGRAM_BOT_TOKEN = "your_token_here"
@@ -92,7 +78,7 @@ go run ./cmd/bot
 
 If you have Docker installed, you can run the bot without installing Go locally.
 
-**1. Create `.env`** (copy from `.env.example`, set `TELEGRAM_BOT_TOKEN`).
+**1. Configure** — use `.env.example` as reference; set `TELEGRAM_BOT_TOKEN` in your environment or env file.
 
 **2. Build and run:**
 
@@ -116,7 +102,7 @@ docker compose down
 
 ```bash
 docker build -t bugreport-bot:latest .
-docker run --rm --env-file .env bugreport-bot:latest
+docker run --rm --env-file <your-env-file> bugreport-bot:latest
 ```
 
 > **Note:** For `ANALYSIS_MODE=ollama`, Ollama must run on the host or in another container; the default Docker setup runs the bot only (mock mode works out of the box).
@@ -138,7 +124,7 @@ docker run --rm --env-file .env bugreport-bot:latest
    export TELEGRAM_BOT_TOKEN="ВАШ_ТОКЕН_ТУТ"
    ```
 
-3. Or use **.env**: copy [.env.example](.env.example) to `.env`, set `TELEGRAM_BOT_TOKEN` and `ANALYSIS_MODE`; the bot loads `.env` at startup.
+3. Or use a local config file: copy [.env.example](.env.example), set `TELEGRAM_BOT_TOKEN` and `ANALYSIS_MODE`; the bot loads it at startup.
 
 4. (One-time) Install dependencies if needed:
 
@@ -204,12 +190,12 @@ docker run --rm --env-file .env bugreport-bot:latest
 ### Чому Ollama не працює? (чекліст)
 
 1. **Увімкнений режим Ollama**  
-   У файлі `.env` (в корені проєкту) має бути:
+   У локальній конфігурації (файл змінних у корені проєкту) має бути:
    ```env
    ANALYSIS_MODE=ollama
    ```
    Якщо стоїть `mock` або змінна не задана — бот **ніколи** не викликає Ollama, тільки мок.  
-   Тепер бот при старті сам підвантажує `.env`; перезапустіть бота після зміни.
+   Бот при старті підвантажує конфіг; перезапустіть після зміни.
 
 2. **Ollama запущений**  
    Відкрийте додаток Ollama або в терміналі: `ollama serve`.  
@@ -217,20 +203,20 @@ docker run --rm --env-file .env bugreport-bot:latest
 
 3. **Модель завантажена**  
    Для фото потрібна vision-модель: `ollama pull llava`.  
-   Для лише тексту підійде й звичайна модель, наприклад `ollama pull llama3.2`; у `.env` тоді можна вказати `OLLAMA_MODEL=llama3.2`.
+   Для лише тексту підійде й звичайна модель, наприклад `ollama pull llama3.2`; у конфігу вкажіть `OLLAMA_MODEL=llama3.2`.
 
 4. **Що бачити в консолі при старті**  
    - Якщо все ок: `analysis mode: ollama` і далі `Ollama is reachable; AI analysis enabled.`  
    - Якщо Ollama вимкнений: `WARNING: ollama not reachable at ...` — спочатку запустіть Ollama (крок 2).
 
-5. **Запуск з .env**  
-   Запускайте бота з тієї папки, де лежить `.env` (корінь проєкту), наприклад: `go run ./cmd/bot` або `make run`.
+5. **Запуск**  
+   Запускайте бота з кореня проєкту, наприклад: `go run ./cmd/bot` або `make run`.
 
 ### Якщо замість аналізу скріна приходять лише шаблони
 
 - Переконайтеся, що **Ollama запущений** (відкритий додаток або `ollama serve`).
 - Перевірте в консолі при старті бота: має бути рядок `Ollama is reachable; AI analysis enabled.`
-- Перевірте, що в `.env` стоїть **`ANALYSIS_MODE=ollama`** (не `mock`).
+- Перевірте, що в конфігу стоїть **`ANALYSIS_MODE=ollama`** (не `mock`).
 - Використовуйте `OLLAMA_URL="http://127.0.0.1:11434"` (на Windows краще ніж localhost).
 - Один раз виконайте `ollama pull llava`.
 - Після запуску Ollama можна знову надіслати фото — перезапуск бота не обов’язковий.
@@ -240,19 +226,19 @@ docker run --rm --env-file .env bugreport-bot:latest
 ## FAQ (common questions)
 
 **Q: Where do I get the bot token?**  
-A: Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, follow the steps. Copy the token into `.env` as `TELEGRAM_BOT_TOKEN=...`.
+A: Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, follow the steps. Set `TELEGRAM_BOT_TOKEN` in your local config (see .env.example).
 
 **Q: Why does the bot always return the same template?**  
-A: You are in `mock` mode. Set `ANALYSIS_MODE=ollama` in `.env`, install and run Ollama, and run `ollama pull llava` for screenshot analysis.
+A: You are in `mock` mode. Set `ANALYSIS_MODE=ollama` in your config, install and run Ollama, and run `ollama pull llava` for screenshot analysis.
 
 **Q: Why does photo analysis fail but text works?**  
-A: Photo analysis needs a **vision** model. Use `OLLAMA_MODEL=llava` in `.env` and run `ollama pull llava`. Text-only models (e.g. llama3.2) do not accept images.
+A: Photo analysis needs a **vision** model. Set `OLLAMA_MODEL=llava` in your config and run `ollama pull llava`. Text-only models (e.g. llama3.2) do not accept images.
 
 **Q: Can I run the bot 24/7?**  
 A: When running on your PC, the bot stops when you close the terminal or turn off the computer. For 24/7, run it on a server (e.g. VPS) or use Docker on a machine that stays on.
 
-**Q: Is my `.env` file safe?**  
-A: `.env` is in `.gitignore` and is **not** committed to GitHub. Never share your token. Use `.env.example` as a template; it contains no secrets.
+**Q: Is my config/token safe?**  
+A: Local config with the token is in `.gitignore` and is not committed. Never share your token. Use `.env.example` as reference; it has no secrets.
 
 **Q: How do I run tests?**  
 A: From the project root: `go test ./...` or `make test`.
@@ -261,7 +247,7 @@ A: From the project root: `go test ./...` or `make test`.
 
 ## Recent improvements (documentation & DX)
 
-- **.env.example** — Added; copy to `.env` and set your token. No secrets in the repo.
+- **.env.example** — Added; use as reference for required variables. No secrets in the repo.
 - **FAQ** — Added for common questions (token, Ollama, photo vs text, 24/7, safety).
 - **Docker** — Added Dockerfile and docker-compose for quick start without installing Go.
 - **README** — More command examples, clearer formatting, table of commands, and explicit links to [TESTCASES.md](TESTCASES.md) and [QA_SUMMARY.md](QA_SUMMARY.md).
